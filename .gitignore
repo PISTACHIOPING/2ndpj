@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.DS_Store
+*.pyc
+node_modules/
+dist/
+frontend/node_modules/
+frontend/dist/
+backend/.env
+backend/alembic/versions/*.pyc
+*.log

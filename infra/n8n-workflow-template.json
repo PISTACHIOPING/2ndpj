@@ -1,0 +1,169 @@
+{
+  "name": "AI Tech Insights News Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": [
+          {
+            "hour": 7,
+            "minute": 0,
+            "weekday": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "timezone": "Asia/Seoul"
+          }
+        ]
+      },
+      "name": "Daily Cron",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://example.com/rss",
+        "options": {
+          "returnFullEntry": true
+        }
+      },
+      "name": "Fetch RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const seen = new Set();\nreturn items.filter(item => {\n  const key = item.json.link;\n  if (seen.has(key)) {\n    return false;\n  }\n  seen.add(key);\n  return true;\n});"
+      },
+      "name": "Deduplicate",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$json[\"link\"]}}",
+        "responseFormat": "json"
+      },
+      "name": "Fetch Full Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "deploymentName": "={{$env[\"AZURE_OPENAI_DEPLOYMENT\"]}}",
+        "endpoint": "={{$env[\"AZURE_OPENAI_ENDPOINT\"]}}",
+        "apiVersion": "2024-05-01-preview",
+        "promptType": "chatCompletions",
+        "messages": "={{$json[\"messages\"]}}",
+        "options": {
+          "responseFormat": "json"
+        }
+      },
+      "name": "Azure OpenAI",
+      "type": "n8n-nodes-base.azureOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        300
+      ],
+      "credentials": {
+        "azureOpenAiApi": "Azure OpenAI Credentials"
+      }
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "={{$env[\"FASTAPI_BASE_URL\"]}}/articles",
+        "jsonParameters": true,
+        "options": {
+          "batching": {
+            "batchSize": 10
+          }
+        },
+        "jsonBody": "={\"articles\": $json}"
+      },
+      "name": "Push to API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1440,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Daily Cron": {
+      "main": [
+        [
+          {
+            "node": "Fetch RSS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch RSS": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicate": {
+      "main": [
+        [
+          {
+            "node": "Fetch Full Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Full Content": {
+      "main": [
+        [
+          {
+            "node": "Azure OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Azure OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Push to API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
